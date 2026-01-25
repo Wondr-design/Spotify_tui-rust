@@ -1,0 +1,18 @@
+[package]
+name = "spotify-tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+base64 = "0.22"
+crossterm = "0.27"
+dirs = "5.0"
+ratatui = "0.27"
+rand = "0.8"
+reqwest = { version = "0.12", features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+tiny_http = "0.12"
+url = "2"

@@ -1,0 +1,88 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin, aarch64-apple-darwin
+
+      - name: Build (arm64)
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Build (amd64)
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/aarch64-apple-darwin/release/spotify-tui dist/spotify-tui
+          tar -czf dist/spotify-tui_darwin_arm64.tar.gz -C dist spotify-tui
+          rm dist/spotify-tui
+          cp target/x86_64-apple-darwin/release/spotify-tui dist/spotify-tui
+          tar -czf dist/spotify-tui_darwin_amd64.tar.gz -C dist spotify-tui
+          rm dist/spotify-tui
+
+      - name: Checksums
+        run: |
+          shasum -a 256 dist/spotify-tui_darwin_arm64.tar.gz | awk '{print $1}' > dist/sha_arm64.txt
+          shasum -a 256 dist/spotify-tui_darwin_amd64.tar.gz | awk '{print $1}' > dist/sha_amd64.txt
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/spotify-tui_darwin_arm64.tar.gz
+            dist/spotify-tui_darwin_amd64.tar.gz
+
+      - name: Update Homebrew Tap
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          SHA_ARM64="$(cat dist/sha_arm64.txt)"
+          SHA_AMD64="$(cat dist/sha_amd64.txt)"
+          git clone https://x-access-token:${GH_TOKEN}@github.com/Wondr-design/homebrew-tap.git tap
+          cat > tap/Formula/spotify-tui.rb <<FORMULA
+class SpotifyTui < Formula
+  desc "Brutalist terminal UI for Spotify on macOS"
+  homepage "https://github.com/Wondr-design/spotify"
+  version "${VERSION}"
+
+  on_arm do
+    url "https://github.com/Wondr-design/spotify/releases/download/${TAG}/spotify-tui_darwin_arm64.tar.gz"
+    sha256 "${SHA_ARM64}"
+  end
+
+  on_intel do
+    url "https://github.com/Wondr-design/spotify/releases/download/${TAG}/spotify-tui_darwin_amd64.tar.gz"
+    sha256 "${SHA_AMD64}"
+  end
+
+  def install
+    bin.install "spotify-tui"
+  end
+
+  test do
+    system "#{bin}/spotify-tui", "--version"
+  end
+end
+FORMULA
+          cd tap
+          git add Formula/spotify-tui.rb
+          git commit -m "chore(release): update formula for ${TAG}"
+          git push
