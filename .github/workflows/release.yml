@@ -29,24 +29,24 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          cp target/aarch64-apple-darwin/release/spotify-tui dist/spotify-tui
-          tar -czf dist/spotify-tui_darwin_arm64.tar.gz -C dist spotify-tui
-          rm dist/spotify-tui
-          cp target/x86_64-apple-darwin/release/spotify-tui dist/spotify-tui
-          tar -czf dist/spotify-tui_darwin_amd64.tar.gz -C dist spotify-tui
-          rm dist/spotify-tui
+          cp target/aarch64-apple-darwin/release/spotify-tui-rs dist/spotify-tui-rs
+          tar -czf dist/spotify-tui-rs_darwin_arm64.tar.gz -C dist spotify-tui-rs
+          rm dist/spotify-tui-rs
+          cp target/x86_64-apple-darwin/release/spotify-tui-rs dist/spotify-tui-rs
+          tar -czf dist/spotify-tui-rs_darwin_amd64.tar.gz -C dist spotify-tui-rs
+          rm dist/spotify-tui-rs
 
       - name: Checksums
         run: |
-          shasum -a 256 dist/spotify-tui_darwin_arm64.tar.gz | awk '{print $1}' > dist/sha_arm64.txt
-          shasum -a 256 dist/spotify-tui_darwin_amd64.tar.gz | awk '{print $1}' > dist/sha_amd64.txt
+          shasum -a 256 dist/spotify-tui-rs_darwin_arm64.tar.gz | awk '{print $1}' > dist/sha_arm64.txt
+          shasum -a 256 dist/spotify-tui-rs_darwin_amd64.tar.gz | awk '{print $1}' > dist/sha_amd64.txt
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/spotify-tui_darwin_arm64.tar.gz
-            dist/spotify-tui_darwin_amd64.tar.gz
+            dist/spotify-tui-rs_darwin_arm64.tar.gz
+            dist/spotify-tui-rs_darwin_amd64.tar.gz
 
       - name: Update Homebrew Tap
         env:
@@ -57,32 +57,32 @@ jobs:
           SHA_ARM64="$(cat dist/sha_arm64.txt)"
           SHA_AMD64="$(cat dist/sha_amd64.txt)"
           git clone https://x-access-token:${GH_TOKEN}@github.com/Wondr-design/homebrew-tap.git tap
-          cat > tap/Formula/spotify-tui.rb <<FORMULA
-class SpotifyTui < Formula
-  desc "Brutalist terminal UI for Spotify on macOS"
-  homepage "https://github.com/Wondr-design/spotify"
+          cat > tap/Formula/spotify-tui-rs.rb <<FORMULA
+class SpotifyTuiRs < Formula
+  desc "Brutalist terminal UI for Spotify on macOS (Rust)"
+  homepage "https://github.com/Wondr-design/Spotify_tui-rust"
   version "${VERSION}"
 
   on_arm do
-    url "https://github.com/Wondr-design/spotify/releases/download/${TAG}/spotify-tui_darwin_arm64.tar.gz"
+    url "https://github.com/Wondr-design/Spotify_tui-rust/releases/download/${TAG}/spotify-tui-rs_darwin_arm64.tar.gz"
     sha256 "${SHA_ARM64}"
   end
 
   on_intel do
-    url "https://github.com/Wondr-design/spotify/releases/download/${TAG}/spotify-tui_darwin_amd64.tar.gz"
+    url "https://github.com/Wondr-design/Spotify_tui-rust/releases/download/${TAG}/spotify-tui-rs_darwin_amd64.tar.gz"
     sha256 "${SHA_AMD64}"
   end
 
   def install
-    bin.install "spotify-tui"
+    bin.install "spotify-tui-rs"
   end
 
   test do
-    system "#{bin}/spotify-tui", "--version"
+    system "#{bin}/spotify-tui-rs", "--version"
   end
 end
 FORMULA
           cd tap
-          git add Formula/spotify-tui.rb
+          git add Formula/spotify-tui-rs.rb
           git commit -m "chore(release): update formula for ${TAG}"
           git push
