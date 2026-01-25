@@ -150,7 +150,7 @@ fn render_right(f: &mut Frame, area: Rect, app: &App) {
         .split(area);
 
     let vis_block = Block::default().title("/VISUALIZER").borders(Borders::ALL);
-    let vis_lines = vec![
+    let mut vis_lines = vec![
         Line::from("██████████"),
         Line::from("██      ██"),
         Line::from("██      ██"),
@@ -159,6 +159,10 @@ fn render_right(f: &mut Frame, area: Rect, app: &App) {
         Line::from(app.status.track.to_uppercase()),
         Line::from(app.status.artist.to_uppercase()),
     ];
+    if !app.status.album_art_url.is_empty() {
+        let label = format!("ART: {}", app.status.album_art_url);
+        vis_lines.push(Line::from(truncate(&label, 26)));
+    }
     f.render_widget(Paragraph::new(vis_lines).block(vis_block), sections[0]);
 
     let mut logs = vec![
@@ -227,6 +231,16 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(Paragraph::new(line).block(block), area);
 }
 
+fn progress_bar(width: usize, progress: f64) -> String {
+    if width == 0 {
+        return String::new();
+    }
+    let clamped = progress.max(0.0).min(1.0);
+    let filled = (clamped * width as f64).round() as usize;
+    let filled = filled.min(width);
+    format!("{}{}", "█".repeat(filled), "░".repeat(width - filled))
+}
+
 fn render_now_playing(app: &App) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     if !app.status.is_running {
@@ -247,6 +261,13 @@ fn render_now_playing(app: &App) -> Vec<Line<'static>> {
             "   {}",
             app.status.album.to_uppercase()
         )));
+        let position = format_time(app.status.position);
+        let total = format_time(app.status.duration);
+        lines.push(Line::from(format!("   TIME: {} / {}", position, total)));
+        if app.status.duration > 0.0 {
+            let progress = app.status.position / app.status.duration;
+            lines.push(Line::from(format!("   [{}]", progress_bar(24, progress))));
+        }
     }
     lines
 }

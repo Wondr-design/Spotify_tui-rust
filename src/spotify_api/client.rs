@@ -55,7 +55,7 @@ impl APIClient {
     }
 
     pub fn set_token(&mut self, token: Token) {
-        self.set_token(token);
+        self.token = Some(token);
     }
 
     fn bearer(&self) -> Result<String, ApiError> {
