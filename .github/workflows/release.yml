@@ -58,30 +58,30 @@ jobs:
           SHA_AMD64="$(cat dist/sha_amd64.txt)"
           git clone https://x-access-token:${GH_TOKEN}@github.com/Wondr-design/homebrew-tap.git tap
           cat > tap/Formula/spotify-tui-rs.rb <<FORMULA
-class SpotifyTuiRs < Formula
-  desc "Brutalist terminal UI for Spotify on macOS (Rust)"
-  homepage "https://github.com/Wondr-design/Spotify_tui-rust"
-  version "${VERSION}"
+          class SpotifyTuiRs < Formula
+            desc "Brutalist terminal UI for Spotify on macOS (Rust)"
+            homepage "https://github.com/Wondr-design/Spotify_tui-rust"
+            version "${VERSION}"
 
-  on_arm do
-    url "https://github.com/Wondr-design/Spotify_tui-rust/releases/download/${TAG}/spotify-tui-rs_darwin_arm64.tar.gz"
-    sha256 "${SHA_ARM64}"
-  end
+            on_arm do
+              url "https://github.com/Wondr-design/Spotify_tui-rust/releases/download/${TAG}/spotify-tui-rs_darwin_arm64.tar.gz"
+              sha256 "${SHA_ARM64}"
+            end
 
-  on_intel do
-    url "https://github.com/Wondr-design/Spotify_tui-rust/releases/download/${TAG}/spotify-tui-rs_darwin_amd64.tar.gz"
-    sha256 "${SHA_AMD64}"
-  end
+            on_intel do
+              url "https://github.com/Wondr-design/Spotify_tui-rust/releases/download/${TAG}/spotify-tui-rs_darwin_amd64.tar.gz"
+              sha256 "${SHA_AMD64}"
+            end
 
-  def install
-    bin.install "spotify-tui-rs"
-  end
+            def install
+              bin.install "spotify-tui-rs"
+            end
 
-  test do
-    system "#{bin}/spotify-tui-rs", "--version"
-  end
-end
-FORMULA
+            test do
+              system "#{bin}/spotify-tui-rs", "--version"
+            end
+          end
+          FORMULA
           cd tap
           git add Formula/spotify-tui-rs.rb
           git commit -m "chore(release): update formula for ${TAG}"
