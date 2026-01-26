@@ -23,6 +23,17 @@ pub struct Track {
     pub album: Album,
 }
 
+impl Track {
+    pub fn first_artist_name(&self) -> String {
+        if let Some(artist) = self.artists.first() {
+            artist.name.clone()
+        } else {
+            String::new()
+        }
+    }
+}
+
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PlaylistTracks {
     #[serde(default)]

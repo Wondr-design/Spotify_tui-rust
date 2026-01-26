@@ -321,11 +321,7 @@ fn render_queue(app: &App, height: u16) -> Vec<Line<'static>> {
     );
     for i in start..end {
         let track = &queue.queue[i];
-        let artist = track
-            .artists
-            .get(0)
-            .map(|a| a.name.clone())
-            .unwrap_or_default();
+        let artist = track.first_artist_name();
         let prefix = if i == app.selected_index {
             "▶ "
         } else {
@@ -360,11 +356,7 @@ fn render_liked(app: &App, height: u16) -> Vec<Line<'static>> {
     );
     for i in start..end {
         let track = &app.liked_songs[i];
-        let artist = track
-            .artists
-            .get(0)
-            .map(|a| a.name.clone())
-            .unwrap_or_default();
+        let artist = track.first_artist_name();
         let prefix = if i == app.selected_index {
             "♥ "
         } else {
@@ -399,11 +391,7 @@ fn render_playlist_tracks(app: &App, height: u16) -> Vec<Line<'static>> {
     );
     for i in start..end {
         let track = &app.playlist_tracks[i];
-        let artist = track
-            .artists
-            .get(0)
-            .map(|a| a.name.clone())
-            .unwrap_or_default();
+        let artist = track.first_artist_name();
         let prefix = if i == app.selected_index {
             "▶ "
         } else {
