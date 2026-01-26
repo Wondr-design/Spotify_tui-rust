@@ -235,7 +235,7 @@ fn progress_bar(width: usize, progress: f64) -> String {
     if width == 0 {
         return String::new();
     }
-    let clamped = progress.max(0.0).min(1.0);
+    let clamped = progress.clamp(0.0, 1.0);
     let filled = (clamped * width as f64).round() as usize;
     let filled = filled.min(width);
     format!("{}{}", "█".repeat(filled), "░".repeat(width - filled))

@@ -152,10 +152,10 @@ impl App {
 
     fn update_checks_enabled() -> bool {
         let val = std::env::var("SPOTIFY_TUI_NO_UPDATE_CHECK").unwrap_or_default();
-        match val.trim().to_lowercase().as_str() {
-            "" | "0" | "false" | "no" => true,
-            _ => false,
-        }
+        matches!(
+            val.trim().to_lowercase().as_str(),
+            "" | "0" | "false" | "no"
+        )
     }
 
     fn ensure_auth_required(&mut self) -> bool {
@@ -289,7 +289,11 @@ impl App {
     fn build_search_items(&mut self, res: spotify_api::SearchResults) {
         let mut items = Vec::new();
         for t in res.tracks.items {
-            let artist = t.artists.get(0).map(|a| a.name.clone()).unwrap_or_default();
+            let artist = t
+                .artists
+                .first()
+                .map(|a| a.name.clone())
+                .unwrap_or_default();
             items.push(SearchItem {
                 kind: "TRACK".into(),
                 name: format!("{} — {}", t.name.to_uppercase(), artist.to_uppercase()),
@@ -995,7 +999,7 @@ pub fn paginate(total: usize, selected: usize, page_size: usize) -> (usize, usiz
         0
     };
     let end = (start + page_size).min(total);
-    let pages = (total + page_size - 1) / page_size;
+    let pages = total.div_ceil(page_size);
     let page = (selected / page_size) + 1;
     (start, end, page, pages)
 }

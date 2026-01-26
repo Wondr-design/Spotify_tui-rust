@@ -96,7 +96,7 @@ impl APIClient {
 
         let state = state.to_string();
         thread::spawn(move || {
-            for request in server.incoming_requests() {
+            if let Some(request) = server.incoming_requests().next() {
                 let req_url: &str = request.url();
                 let parsed = Url::parse(&format!("http://localhost{}", req_url));
                 let code = match parsed {
@@ -113,13 +113,13 @@ impl APIClient {
                         }
                         if got_state.as_deref() != Some(&state) {
                             tx.send(Err(anyhow::anyhow!("state mismatch"))).ok();
-                            break;
+                            return;
                         }
                         code
                     }
                     Err(e) => {
                         tx.send(Err(anyhow::anyhow!(e))).ok();
-                        break;
+                        return;
                     }
                 };
 
@@ -134,7 +134,6 @@ impl APIClient {
                 } else {
                     tx.send(Err(anyhow::anyhow!("missing code"))).ok();
                 }
-                break;
             }
         });
 

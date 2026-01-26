@@ -119,7 +119,7 @@ fn is_newer(latest: &str, current: &str) -> bool {
 fn normalize(v: &str) -> String {
     let v = v.trim().trim_start_matches('v');
     let mut out = v.to_string();
-    if let Some(i) = out.find(|c| c == '-' || c == '+') {
+    if let Some(i) = out.find(['-', '+']) {
         out.truncate(i);
     }
     out
