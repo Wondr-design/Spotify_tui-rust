@@ -50,7 +50,7 @@ jobs:
 
       - name: Update Homebrew Tap
         env:
-          HOMEBREW_TAP_PAT: ${{ secrets.HOMEBREW_TAP_PAT }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
@@ -58,7 +58,7 @@ jobs:
           SHA_AMD64="$(cat dist/sha_amd64.txt)"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git clone https://x-access-token:${HOMEBREW_TAP_PAT}@github.com/Wondr-design/homebrew-tap.git tap
+          git clone https://x-access-token:${GH_PAT}@github.com/Wondr-design/homebrew-tap.git tap
           cat > tap/Formula/spotify-tui-rs.rb <<FORMULA
           class SpotifyTuiRs < Formula
             desc "Brutalist terminal UI for Spotify on macOS (Rust)"
