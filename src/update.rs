@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use crate::config;
 
 const REPO_OWNER: &str = "Wondr-design";
-const REPO_NAME: &str = "spotify";
+const REPO_NAME: &str = "Spotify_tui-rust";
 const GITHUB_API: &str = "https://api.github.com";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,7 +59,7 @@ fn build_result(current: &str, latest: &str, checked_at: u64) -> ResultInfo {
 
     if is_newer(latest, current) {
         res.update_available = true;
-        res.message = format!("Update available: {} (brew upgrade spotify-tui)", latest);
+        res.message = format!("Update available: {} (brew upgrade spotify-tui-rs)", latest);
     }
     res
 }
@@ -72,7 +72,7 @@ fn fetch_latest() -> Result<String> {
     let client = reqwest::blocking::Client::new();
     let resp = client
         .get(&url)
-        .header("User-Agent", "spotify-tui")
+        .header("User-Agent", "spotify-tui-rs")
         .send()
         .context("failed to call GitHub API")?;
 

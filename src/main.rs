@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     let start_setup = args.iter().any(|a| a == "--setup" || a == "-s");
 
     if show_version {
-        println!("spotify-tui {}", env!("CARGO_PKG_VERSION"));
+        println!("spotify-tui-rs {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
 

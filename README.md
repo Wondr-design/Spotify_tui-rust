@@ -26,27 +26,27 @@ A brutalist terminal interface for controlling Spotify on macOS, rewritten in Ru
 ### From Source
 ```bash
 cargo build --release
-./target/release/spotify-tui
+./target/release/spotify-tui-rs
 ```
 
 ### Homebrew
 ```bash
-brew tap Wondr-design/tap
-brew install spotify-tui
+brew tap Wondr-design/homebrew-tap
+brew install spotify-tui-rs
 ```
 
 ## Usage
 
 ```bash
-spotify-tui
+spotify-tui-rs
 ```
 
 ## OAuth Setup (Optional)
 
 To access Playlists, Queue, Liked Songs, Search, and Devices:
 
-1. Run `spotify-tui`
-2. Press `c` to open the in-app setup guide (or run `spotify-tui --setup`)
+1. Run `spotify-tui-rs`
+2. Press `c` to open the in-app setup guide (or run `spotify-tui-rs --setup`)
 3. Follow the prompts to paste your Client ID and authenticate
 
 ## Requirements

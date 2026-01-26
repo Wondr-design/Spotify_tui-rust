@@ -33,7 +33,6 @@ impl Track {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PlaylistTracks {
     #[serde(default)]

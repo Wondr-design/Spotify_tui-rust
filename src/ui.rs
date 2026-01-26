@@ -109,16 +109,19 @@ fn render_left(f: &mut Frame, area: Rect, app: &App) {
 
 fn render_center(f: &mut Frame, area: Rect, app: &App) {
     let title = match app.section {
-        Section::NowPlaying => "/MAIN_BUFFER",
-        Section::Playlists => "/PLAYLISTS",
-        Section::PlaylistTracks => "/PLAYLISTS/TRACKS",
-        Section::Queue => "/QUEUE_BUFFER",
-        Section::Liked => "/LIKED_BUFFER",
-        Section::Search => "/SEARCH",
-        Section::Devices => "/DEVICES",
-        Section::Setup => "/SETUP",
-        Section::Help => "/MANUAL",
-        Section::Auth => "/AUTH",
+        Section::NowPlaying => "/MAIN_BUFFER".to_string(),
+        Section::Playlists => "/PLAYLISTS".to_string(),
+        Section::PlaylistTracks => match &app.selected_playlist {
+            Some(pl) => format!("/PLAYLISTS/{}", truncate(&pl.name.to_uppercase(), 24)),
+            None => "/PLAYLISTS/TRACKS".to_string(),
+        },
+        Section::Queue => "/QUEUE_BUFFER".to_string(),
+        Section::Liked => "/LIKED_BUFFER".to_string(),
+        Section::Search => "/SEARCH".to_string(),
+        Section::Devices => "/DEVICES".to_string(),
+        Section::Setup => "/SETUP".to_string(),
+        Section::Help => "/MANUAL".to_string(),
+        Section::Auth => "/AUTH".to_string(),
     };
 
     let content = match app.section {
@@ -179,7 +182,7 @@ fn render_right(f: &mut Frame, area: Rect, app: &App) {
     if let Some(update) = &app.update_result {
         if update.update_available {
             logs.push(Line::from(format!("UPDATE: {}", update.message)));
-            logs.push(Line::from("RUN: brew upgrade spotify-tui"));
+            logs.push(Line::from("RUN: brew upgrade spotify-tui-rs"));
         }
     }
     if let Some(err) = &app.update_err {
@@ -215,10 +218,18 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
         .unwrap_or_else(|| "-".into());
 
     let left = "root@spotify-tui:~$ enter command (press '/' to focus)";
-    let right = format!(
+    let mut right = format!(
         "VOL: {}%  {}  SHUF:{} REP:{} DEV:{}",
         app.status.volume, status, shuffle, repeat, device
     );
+    if let Some(update) = &app.update_result {
+        if update.update_available {
+            right = format!(
+                "{}  UPDATE {}  RUN: brew upgrade spotify-tui-rs",
+                right, update.latest
+            );
+        }
+    }
     let gap = area
         .width
         .saturating_sub(left.len() as u16 + right.len() as u16 + 1) as usize;
