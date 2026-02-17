@@ -1019,10 +1019,14 @@ pub fn truncate(s: &str, max_len: usize) -> String {
     if max_len == 1 {
         return "…".to_string();
     }
-    if s.len() <= max_len {
+    if s.chars().count() <= max_len {
         return s.to_string();
     }
-    format!("{}…", &s[..max_len - 1])
+
+    let mut out = String::with_capacity(max_len);
+    out.extend(s.chars().take(max_len - 1));
+    out.push('…');
+    out
 }
 
 pub fn format_time(seconds: f64) -> String {
@@ -1046,5 +1050,12 @@ mod tests {
     fn list_page_size_minimum() {
         assert_eq!(list_page_size(0), 5);
         assert_eq!(list_page_size(4), 5);
+    }
+
+    #[test]
+    fn truncate_handles_multibyte_characters() {
+        let title = "2000'S NAIJA HITS 🇳🇬🇳🇬";
+        let got = truncate(title, 21);
+        assert_eq!(got, "2000'S NAIJA HITS 🇳🇬…");
     }
 }
