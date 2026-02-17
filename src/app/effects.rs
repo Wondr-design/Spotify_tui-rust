@@ -1,3 +1,5 @@
+//! Side-effect helpers that run Spotify/API work on background threads.
+
 use anyhow::{Context, Result};
 use crossterm::event::{KeyCode, KeyEvent};
 use std::sync::mpsc::Sender;

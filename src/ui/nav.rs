@@ -1,3 +1,5 @@
+//! Left navigation panel and static keybinding hints.
+
 use crate::app::{App, Section};
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
@@ -6,7 +8,7 @@ use ratatui::Frame;
 
 use super::theme::Theme;
 
-pub(super) fn render_left_panel(f: &mut Frame, area: Rect, app: &App, theme: Theme) {
+pub(super) fn render(f: &mut Frame, area: Rect, app: &App, theme: Theme) {
     let mut lines = Vec::new();
     push_nav_line(
         &mut lines,

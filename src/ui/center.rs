@@ -1,3 +1,5 @@
+//! Main content panel renderers for each app section.
+
 use crate::app::{format_time, section_label, truncate, App, Section};
 use ratatui::layout::Rect;
 use ratatui::style::Style;
@@ -8,7 +10,7 @@ use ratatui::Frame;
 use super::grid::{self, GridItem};
 use super::theme::{color_wheel_cursor, color_wheel_line, Theme};
 
-pub(super) fn render_center_panel(f: &mut Frame, area: Rect, app: &App, theme: Theme) {
+pub(super) fn render(f: &mut Frame, area: Rect, app: &App, theme: Theme) {
     let title = format!("/{}", section_label(app.section).replace(' ', "_"));
     let block = Block::default()
         .title(Span::styled(title, theme.title_style()))

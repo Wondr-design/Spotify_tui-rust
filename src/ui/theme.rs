@@ -1,3 +1,5 @@
+//! Theme primitives and color utilities derived from a configurable hue.
+
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 

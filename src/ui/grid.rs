@@ -1,3 +1,5 @@
+//! Generic grid renderer for playlist, queue, liked, search, and devices.
+
 use crate::app::{list_page_size, paginate, truncate};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};

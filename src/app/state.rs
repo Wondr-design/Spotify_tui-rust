@@ -1,3 +1,5 @@
+//! Core app state and section model used across input, effects, and rendering.
+
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

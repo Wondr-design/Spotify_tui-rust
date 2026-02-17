@@ -1,3 +1,5 @@
+//! Right-side panel rendering for visualizer and system logs.
+
 use crate::app::{truncate, App};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
@@ -8,7 +10,7 @@ use ratatui::Frame;
 use super::theme::Theme;
 use super::visualizer;
 
-pub(super) fn render_right_panel(f: &mut Frame, area: Rect, app: &App, theme: Theme) {
+pub(super) fn render(f: &mut Frame, area: Rect, app: &App, theme: Theme) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(14), Constraint::Min(8)])
@@ -20,7 +22,7 @@ pub(super) fn render_right_panel(f: &mut Frame, area: Rect, app: &App, theme: Th
         .border_style(theme.border_style());
     let vis_inner = vis_block.inner(rows[0]);
     f.render_widget(vis_block, rows[0]);
-    let vis_lines = visualizer::lines(app, vis_inner.width, vis_inner.height, theme);
+    let vis_lines = visualizer::render(app, vis_inner.width, vis_inner.height, theme);
     f.render_widget(
         Paragraph::new(vis_lines)
             .style(theme.text_style())

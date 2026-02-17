@@ -1,3 +1,5 @@
+//! Keyboard input handling and command routing for each app section.
+
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use std::sync::mpsc::Sender;

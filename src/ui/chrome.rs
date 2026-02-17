@@ -1,3 +1,5 @@
+//! Header and footer rendering for global app chrome.
+
 use crate::app::{section_label, truncate, App};
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};

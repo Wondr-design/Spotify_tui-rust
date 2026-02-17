@@ -1,3 +1,5 @@
+//! Top-level UI composition for header, body panels, and footer.
+
 mod center;
 mod chrome;
 mod grid;
@@ -40,9 +42,9 @@ pub fn draw(f: &mut Frame, app: &App) {
         ])
         .split(root[1]);
 
-    nav::render_left_panel(f, body[0], app, theme);
-    center::render_center_panel(f, body[1], app, theme);
-    right::render_right_panel(f, body[2], app, theme);
+    nav::render(f, body[0], app, theme);
+    center::render(f, body[1], app, theme);
+    right::render(f, body[2], app, theme);
 
     chrome::render_footer(f, root[2], app, theme);
 }

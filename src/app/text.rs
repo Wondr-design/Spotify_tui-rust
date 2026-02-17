@@ -1,3 +1,5 @@
+//! Shared text, pagination, and formatting helpers used by app and UI.
+
 use super::state::Section;
 
 pub fn section_label(section: Section) -> &'static str {

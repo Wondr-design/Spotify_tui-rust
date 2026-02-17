@@ -1,10 +1,12 @@
+//! Lightweight terminal visualizer driven by playback progress and tick state.
+
 use crate::app::{format_time, truncate, App};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 
 use super::theme::Theme;
 
-pub fn lines(app: &App, width: u16, height: u16, theme: Theme) -> Vec<Line<'static>> {
+pub(super) fn render(app: &App, width: u16, height: u16, theme: Theme) -> Vec<Line<'static>> {
     let chart_height = height.saturating_sub(6).clamp(4, 12) as usize;
     let bars = (width.saturating_sub(4) as usize / 2).clamp(8, 24);
     let mut out = Vec::new();

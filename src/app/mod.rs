@@ -1,3 +1,5 @@
+//! App runtime wiring: terminal lifecycle, event loop, and message pump.
+
 mod effects;
 mod input;
 mod messages;

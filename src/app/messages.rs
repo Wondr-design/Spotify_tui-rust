@@ -1,3 +1,5 @@
+//! Async message handling and periodic state updates from background effects.
+
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
