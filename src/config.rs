@@ -5,9 +5,26 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub const DEFAULT_ACCENT_HUE: u16 = 145;
+
+fn default_accent_hue() -> u16 {
+    DEFAULT_ACCENT_HUE
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub client_id: String,
+    #[serde(default = "default_accent_hue")]
+    pub accent_hue: u16,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            client_id: String::new(),
+            accent_hue: DEFAULT_ACCENT_HUE,
+        }
+    }
 }
 
 pub fn config_dir() -> PathBuf {
@@ -23,7 +40,8 @@ pub fn config_dir() -> PathBuf {
 pub fn load_config() -> Result<Config> {
     let path = config_dir().join("config.json");
     let data = fs::read(&path).with_context(|| format!("failed to read {}", path.display()))?;
-    let cfg = serde_json::from_slice(&data).context("failed to parse config.json")?;
+    let mut cfg: Config = serde_json::from_slice(&data).context("failed to parse config.json")?;
+    cfg.accent_hue %= 360;
     Ok(cfg)
 }
 
@@ -31,7 +49,9 @@ pub fn save_config(cfg: &Config) -> Result<()> {
     let dir = config_dir();
     fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
     let path = dir.join("config.json");
-    let data = serde_json::to_vec_pretty(cfg).context("failed to serialize config")?;
+    let mut out = cfg.clone();
+    out.accent_hue %= 360;
+    let data = serde_json::to_vec_pretty(&out).context("failed to serialize config")?;
     fs::write(&path, data).with_context(|| format!("failed to write {}", path.display()))?;
     Ok(())
 }
@@ -64,10 +84,12 @@ mod tests {
 
         let cfg = Config {
             client_id: "abc123".to_string(),
+            accent_hue: 280,
         };
         save_config(&cfg).unwrap();
         let loaded = load_config().unwrap();
         assert_eq!(loaded.client_id, cfg.client_id);
+        assert_eq!(loaded.accent_hue, cfg.accent_hue);
 
         let token = Token {
             access_token: "access".into(),

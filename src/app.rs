@@ -20,6 +20,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const DASHBOARD_URL: &str = "https://developer.spotify.com/dashboard";
+const FEEDBACK_TIMEOUT: Duration = Duration::from_millis(2200);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Section {
@@ -77,6 +78,11 @@ pub struct App {
     pub update_err: Option<String>,
     pub setup_client_id: String,
     pub setup_auto_open: bool,
+    pub accent_hue: u16,
+    pub setup_hue: u16,
+    pub animation_tick: u64,
+    pub feedback: Option<String>,
+    feedback_until: Instant,
 
     pub api_client: Option<Arc<Mutex<APIClient>>>,
     pub authenticated: bool,
@@ -113,6 +119,11 @@ impl App {
             update_err: None,
             setup_client_id: String::new(),
             setup_auto_open: false,
+            accent_hue: config::DEFAULT_ACCENT_HUE,
+            setup_hue: config::DEFAULT_ACCENT_HUE,
+            animation_tick: 0,
+            feedback: None,
+            feedback_until: Instant::now(),
             api_client: None,
             authenticated: false,
             auth_url: String::new(),
@@ -130,8 +141,13 @@ impl App {
         };
 
         if let Ok(cfg) = config::load_config() {
-            if !cfg.client_id.trim().is_empty() {
-                let mut client = APIClient::new(cfg.client_id)?;
+            let client_id = cfg.client_id.trim().to_string();
+            app.setup_client_id = client_id.clone();
+            app.accent_hue = cfg.accent_hue % 360;
+            app.setup_hue = app.accent_hue;
+
+            if !client_id.is_empty() {
+                let mut client = APIClient::new(client_id)?;
                 let _ = client.load_token_from_disk();
                 app.authenticated = client.is_authenticated();
                 app.api_client = Some(Arc::new(Mutex::new(client)));
@@ -145,6 +161,7 @@ impl App {
         if start_setup {
             app.section = Section::Setup;
             app.setup_auto_open = true;
+            app.setup_hue = app.accent_hue;
         }
 
         Ok(app)
@@ -165,13 +182,34 @@ impl App {
         self.prev_section = self.section;
         self.section = Section::Auth;
         self.auth_in_progress = false;
+        self.set_feedback("auth required");
         true
+    }
+
+    fn set_feedback<S: Into<String>>(&mut self, message: S) {
+        self.feedback = Some(message.into());
+        self.feedback_until = Instant::now() + FEEDBACK_TIMEOUT;
+    }
+
+    fn bump_setup_hue(&mut self, step: i16) {
+        let mut hue = self.setup_hue as i16 + step;
+        while hue < 0 {
+            hue += 360;
+        }
+        self.setup_hue = (hue as u16) % 360;
+        self.accent_hue = self.setup_hue;
+        self.set_feedback(format!("accent hue {}", self.setup_hue));
     }
 
     fn set_section(&mut self, section: Section) {
         self.prev_section = self.section;
         self.section = section;
         self.selected_index = 0;
+    }
+
+    fn navigate_to(&mut self, section: Section) {
+        self.set_section(section);
+        self.set_feedback(format!("section: {}", section_label(section)));
     }
 
     fn list_len(&self) -> usize {
@@ -248,7 +286,7 @@ impl App {
                 if self.selected_index < self.search_items.len() {
                     let item = self.search_items[self.selected_index].clone();
                     if let Some(client) = self.api_client.clone() {
-                        if item.kind == "TRACK" {
+                        if item.kind == "track" {
                             spawn_start_playback(tx.clone(), client, vec![item.uri], String::new());
                         } else {
                             spawn_start_playback(tx.clone(), client, Vec::new(), item.uri);
@@ -281,7 +319,11 @@ impl App {
             };
             self.auth_url = url.clone();
             self.auth_in_progress = true;
-            let _ = open_browser(&url);
+            if let Err(err) = open_browser(&url) {
+                self.err = Some(err.to_string());
+            } else {
+                self.set_feedback("opened spotify auth");
+            }
             spawn_auth(tx.clone(), client, state, verifier);
         }
     }
@@ -291,27 +333,30 @@ impl App {
         for t in res.tracks.items.into_iter().flatten() {
             let artist = t.first_artist_name();
             items.push(SearchItem {
-                kind: "TRACK".into(),
-                name: format!("{} — {}", t.name.to_uppercase(), artist.to_uppercase()),
+                kind: "track".into(),
+                name: format!("{} - {}", t.name.to_lowercase(), artist.to_lowercase()),
                 uri: t.uri,
             });
         }
         for p in res.playlists.items.into_iter().flatten() {
             items.push(SearchItem {
-                kind: "PLAYLIST".into(),
-                name: p.name.to_uppercase(),
+                kind: "playlist".into(),
+                name: p.name.to_lowercase(),
                 uri: p.uri,
             });
         }
         for a in res.artists.items.into_iter().flatten() {
             items.push(SearchItem {
-                kind: "ARTIST".into(),
-                name: a.name.to_uppercase(),
+                kind: "artist".into(),
+                name: a.name.to_lowercase(),
                 uri: a.uri,
             });
         }
+
+        let total = items.len();
         self.search_items = items;
         self.selected_index = 0;
+        self.set_feedback(format!("{} search matches", total));
     }
 
     fn handle_key(&mut self, key: KeyEvent, tx: &Sender<AppMessage>) -> Result<bool> {
@@ -325,25 +370,30 @@ impl App {
                 match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => {
                         self.set_section(self.prev_section);
+                        self.set_feedback("back");
                     }
                     KeyCode::Char('b') => {
                         self.set_section(self.prev_section);
+                        self.set_feedback("back");
                     }
                     KeyCode::Char('a') => {
                         if self.api_client.is_none() {
                             if let Ok(cfg) = config::load_config() {
-                                if !cfg.client_id.trim().is_empty() {
-                                    let client = APIClient::new(cfg.client_id)?;
+                                let client_id = cfg.client_id.trim().to_string();
+                                if !client_id.is_empty() {
+                                    let client = APIClient::new(client_id)?;
                                     self.api_client = Some(Arc::new(Mutex::new(client)));
                                 } else {
                                     self.err = Some(
                                         "missing client_id in ~/.spotify-tui/config.json".into(),
                                     );
+                                    self.set_feedback("setup is required");
                                     return Ok(false);
                                 }
                             } else {
                                 self.err =
                                     Some("missing client_id in ~/.spotify-tui/config.json".into());
+                                self.set_feedback("setup is required");
                                 return Ok(false);
                             }
                         }
@@ -356,29 +406,40 @@ impl App {
             Section::Setup => {
                 match key.code {
                     KeyCode::Esc => {
-                        self.set_section(Section::NowPlaying);
+                        self.navigate_to(Section::NowPlaying);
                     }
                     KeyCode::Enter => {
                         let client_id = self.setup_client_id.trim().to_string();
                         if client_id.is_empty() {
                             self.err = Some("client_id required".into());
+                            self.set_feedback("client id is required");
                             return Ok(false);
                         }
+                        self.accent_hue = self.setup_hue;
                         config::save_config(&config::Config {
                             client_id: client_id.clone(),
+                            accent_hue: self.accent_hue,
                         })?;
                         let client = APIClient::new(client_id)?;
                         self.api_client = Some(Arc::new(Mutex::new(client)));
                         self.authenticated = false;
-                        self.setup_client_id.clear();
+                        self.set_feedback("saved setup");
                         self.set_section(Section::Auth);
                         self.begin_auth(tx);
                     }
                     KeyCode::Backspace => {
                         self.setup_client_id.pop();
                     }
+                    KeyCode::Left => self.bump_setup_hue(-1),
+                    KeyCode::Right => self.bump_setup_hue(1),
+                    KeyCode::Down => self.bump_setup_hue(-10),
+                    KeyCode::Up => self.bump_setup_hue(10),
                     KeyCode::Char('o') => {
-                        let _ = open_browser(DASHBOARD_URL);
+                        if let Err(err) = open_browser(DASHBOARD_URL) {
+                            self.err = Some(err.to_string());
+                        } else {
+                            self.set_feedback("opened spotify dashboard");
+                        }
                     }
                     KeyCode::Char(c) => {
                         if !c.is_control() {
@@ -392,6 +453,7 @@ impl App {
             Section::Search => match key.code {
                 KeyCode::Esc => {
                     self.set_section(self.prev_section);
+                    self.set_feedback("back");
                     return Ok(false);
                 }
                 KeyCode::Enter => {
@@ -401,14 +463,15 @@ impl App {
                         self.handle_enter(tx);
                         return Ok(false);
                     }
-                    let q = self.search_query.trim();
+                    let q = self.search_query.trim().to_string();
                     if !q.is_empty() {
                         if self.api_client.is_none() {
                             self.err = Some(
                                 "missing API client; configure ~/.spotify-tui/config.json".into(),
                             );
                         } else if let Some(client) = self.api_client.clone() {
-                            spawn_search(tx.clone(), client, q.to_string());
+                            self.set_feedback(format!("searching for {}", q.to_lowercase()));
+                            spawn_search(tx.clone(), client, q);
                         }
                     }
                     return Ok(false);
@@ -444,6 +507,7 @@ impl App {
             Section::Devices | Section::PlaylistTracks => {
                 if matches!(key.code, KeyCode::Esc) || matches!(key.code, KeyCode::Char('b')) {
                     self.set_section(self.prev_section);
+                    self.set_feedback("back");
                     return Ok(false);
                 }
             }
@@ -454,37 +518,43 @@ impl App {
         match key.code {
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => return Ok(true),
-            KeyCode::Char('1') => self.set_section(Section::NowPlaying),
+            KeyCode::Char('1') => self.navigate_to(Section::NowPlaying),
             KeyCode::Char('2') => {
-                self.set_section(Section::Playlists);
+                self.navigate_to(Section::Playlists);
                 if self.ensure_auth_required() {
                     return Ok(false);
                 }
                 if let Some(client) = self.api_client.clone() {
+                    self.set_feedback("loading playlists");
                     spawn_playlists(tx.clone(), client);
                 }
             }
             KeyCode::Char('3') => {
-                self.set_section(Section::Queue);
+                self.navigate_to(Section::Queue);
                 if self.ensure_auth_required() {
                     return Ok(false);
                 }
                 if let Some(client) = self.api_client.clone() {
+                    self.set_feedback("loading queue");
                     spawn_queue(tx.clone(), client);
                 }
             }
             KeyCode::Char('4') => {
-                self.set_section(Section::Liked);
+                self.navigate_to(Section::Liked);
                 if self.ensure_auth_required() {
                     return Ok(false);
                 }
                 if let Some(client) = self.api_client.clone() {
+                    self.set_feedback("loading liked songs");
                     spawn_liked(tx.clone(), client);
                 }
             }
-            KeyCode::Char('c') => self.set_section(Section::Setup),
+            KeyCode::Char('c') => {
+                self.setup_hue = self.accent_hue;
+                self.navigate_to(Section::Setup);
+            }
             KeyCode::Char('/') => {
-                self.set_section(Section::Search);
+                self.navigate_to(Section::Search);
                 if self.ensure_auth_required() {
                     return Ok(false);
                 }
@@ -492,16 +562,17 @@ impl App {
                 self.search_items.clear();
             }
             KeyCode::Char('d') => {
-                self.set_section(Section::Devices);
+                self.navigate_to(Section::Devices);
                 if self.ensure_auth_required() {
                     return Ok(false);
                 }
                 if let Some(client) = self.api_client.clone() {
+                    self.set_feedback("loading devices");
                     spawn_devices(tx.clone(), client);
                 }
             }
             KeyCode::Char('a') => {
-                self.set_section(Section::Auth);
+                self.navigate_to(Section::Auth);
             }
             KeyCode::Char('s') => {
                 if self.authenticated {
@@ -511,6 +582,7 @@ impl App {
                             .as_ref()
                             .map(|p| !p.shuffle_state)
                             .unwrap_or(true);
+                        self.set_feedback(format!("shuffle {}", if next { "on" } else { "off" }));
                         spawn_shuffle(tx.clone(), client, next);
                     }
                 }
@@ -519,16 +591,18 @@ impl App {
                 if self.authenticated {
                     if let Some(client) = self.api_client.clone() {
                         let next = next_repeat_state(self.playback.as_ref());
+                        self.set_feedback(format!("repeat {}", next));
                         spawn_repeat(tx.clone(), client, next);
                     }
                 }
             }
             KeyCode::Char('u') => {
                 if Self::update_checks_enabled() {
+                    self.set_feedback("checking updates");
                     spawn_update_check(tx.clone(), self.version.clone(), true, true);
                 }
             }
-            KeyCode::Char('?') | KeyCode::Char('h') => self.set_section(Section::Help),
+            KeyCode::Char('?') | KeyCode::Char('h') => self.navigate_to(Section::Help),
             _ => {}
         }
 
@@ -544,6 +618,7 @@ impl App {
                         if let Err(e) = apple_script::play_pause() {
                             self.err = Some(e.to_string());
                         }
+                        self.set_feedback("play / pause");
                         self.last_action_at = Instant::now();
                         spawn_status(tx.clone());
                     }
@@ -551,6 +626,7 @@ impl App {
                         if let Err(e) = apple_script::next_track() {
                             self.err = Some(e.to_string());
                         }
+                        self.set_feedback("next track");
                         self.last_action_at = Instant::now();
                         spawn_status(tx.clone());
                     }
@@ -558,6 +634,7 @@ impl App {
                         if let Err(e) = apple_script::previous_track() {
                             self.err = Some(e.to_string());
                         }
+                        self.set_feedback("previous track");
                         self.last_action_at = Instant::now();
                         spawn_status(tx.clone());
                     }
@@ -571,6 +648,7 @@ impl App {
                                 self.err = Some(e.to_string());
                             }
                             self.status.volume = new_vol;
+                            self.set_feedback(format!("volume {}%", self.status.volume));
                             self.last_action_at = Instant::now();
                         }
                     }
@@ -584,6 +662,7 @@ impl App {
                                 self.err = Some(e.to_string());
                             }
                             self.status.volume = new_vol;
+                            self.set_feedback(format!("volume {}%", self.status.volume));
                             self.last_action_at = Instant::now();
                         }
                     }
@@ -632,41 +711,74 @@ impl App {
                 self.status = status;
                 self.last_status_fetch = Instant::now();
             }
-            AppMessage::Playlists(pl) => self.playlists = pl,
-            AppMessage::Queue(q) => self.queue = Some(q),
-            AppMessage::Liked(tracks) => self.liked_songs = tracks,
-            AppMessage::PlaylistTracks(tracks) => self.playlist_tracks = tracks,
+            AppMessage::Playlists(pl) => {
+                self.playlists = pl;
+                self.set_feedback(format!("loaded {} playlists", self.playlists.len()));
+            }
+            AppMessage::Queue(q) => {
+                self.queue = Some(q);
+                let count = self
+                    .queue
+                    .as_ref()
+                    .map(|item| item.queue.len())
+                    .unwrap_or(0);
+                self.set_feedback(format!("loaded {} queued tracks", count));
+            }
+            AppMessage::Liked(tracks) => {
+                self.liked_songs = tracks;
+                self.set_feedback(format!("loaded {} liked tracks", self.liked_songs.len()));
+            }
+            AppMessage::PlaylistTracks(tracks) => {
+                self.playlist_tracks = tracks;
+                self.set_feedback(format!("loaded {} tracks", self.playlist_tracks.len()));
+            }
             AppMessage::Playback(pb) => {
                 self.playback = Some(pb);
                 self.last_api_fetch = Instant::now();
             }
-            AppMessage::Devices(devs) => self.devices = devs,
+            AppMessage::Devices(devs) => {
+                self.devices = devs;
+                self.set_feedback(format!("loaded {} devices", self.devices.len()));
+            }
             AppMessage::Search(res) => self.build_search_items(res),
-            AppMessage::Update(result, _manual) => {
+            AppMessage::Update(result, manual) => {
+                if result.update_available {
+                    self.set_feedback(format!("upgrade available: {}", result.latest));
+                } else if manual {
+                    self.set_feedback("you are up to date");
+                }
                 self.update_result = Some(result);
                 self.update_err = None;
             }
             AppMessage::UpdateErr(err, manual) => {
                 if manual {
-                    self.update_err = Some(err);
+                    self.update_err = Some(err.clone());
+                    self.set_feedback("update check failed");
                 }
             }
             AppMessage::AuthComplete => {
                 self.authenticated = true;
                 self.auth_in_progress = false;
                 self.set_section(Section::NowPlaying);
+                self.set_feedback("auth complete");
             }
             AppMessage::Error(err, not_auth) => {
                 if not_auth {
                     self.authenticated = false;
                     self.set_section(Section::Auth);
                 }
+                self.set_feedback("request failed");
                 self.err = Some(err);
             }
         }
     }
 
     fn on_tick(&mut self, tx: &Sender<AppMessage>) {
+        self.animation_tick = self.animation_tick.wrapping_add(1);
+        if self.feedback.is_some() && Instant::now() > self.feedback_until {
+            self.feedback = None;
+        }
+
         if self.last_status_fetch.elapsed() > Duration::from_secs(1) {
             spawn_status(tx.clone());
         }
@@ -692,7 +804,11 @@ pub fn run(mut app: App) -> Result<()> {
         spawn_update_check(tx.clone(), app.version.clone(), false, false);
     }
     if app.setup_auto_open {
-        let _ = open_browser(DASHBOARD_URL);
+        if let Err(err) = open_browser(DASHBOARD_URL) {
+            app.err = Some(err.to_string());
+        } else {
+            app.set_feedback("opened spotify dashboard");
+        }
     }
 
     let mut last_tick = Instant::now();
@@ -980,6 +1096,21 @@ fn next_repeat_state(p: Option<&PlaybackState>) -> String {
         Some("off") | None => "context".into(),
         Some("context") => "track".into(),
         _ => "off".into(),
+    }
+}
+
+pub fn section_label(section: Section) -> &'static str {
+    match section {
+        Section::NowPlaying => "now playing",
+        Section::Playlists => "playlists",
+        Section::Queue => "queue",
+        Section::Liked => "liked",
+        Section::Search => "search",
+        Section::Devices => "devices",
+        Section::PlaylistTracks => "playlist tracks",
+        Section::Setup => "setup",
+        Section::Help => "help",
+        Section::Auth => "auth",
     }
 }
 
