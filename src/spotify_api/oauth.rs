@@ -20,11 +20,15 @@ pub const SCOPES: &str = "user-read-playback-state user-modify-playback-state us
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Token {
     pub access_token: String,
+    #[serde(default)]
     pub token_type: String,
+    #[serde(default)]
     pub expires_in: u64,
     #[serde(default)]
     pub refresh_token: String,
+    #[serde(default)]
     pub scope: String,
+    #[serde(default)]
     pub expires_at: u64,
 }
 
@@ -82,7 +86,23 @@ impl APIClient {
             .send()
             .map_err(|e| anyhow::anyhow!("failed to exchange code: {}", e))?;
 
-        let mut token: Token = resp.json().context("invalid token response")?;
+        let status = resp.status();
+        let body = resp
+            .text()
+            .context("failed to read token exchange response body")?;
+        if !status.is_success() {
+            anyhow::bail!("token exchange failed ({}): {}", status, body.trim());
+        }
+
+        let mut token: Token = serde_json::from_str(&body)
+            .with_context(|| format!("invalid token response: {}", body.trim()))?;
+        if token.access_token.is_empty() {
+            anyhow::bail!(
+                "token exchange returned empty access token: {}",
+                body.trim()
+            );
+        }
+
         token.expires_at = Token::calc_expiry(token.expires_in);
         self.token = Some(token.clone());
         config::save_token(&token)?;
