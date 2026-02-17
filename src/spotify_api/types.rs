@@ -1,7 +1,15 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+fn de_string_or_default<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Artist {
+    #[serde(default, deserialize_with = "de_string_or_default")]
     pub name: String,
     #[serde(default)]
     pub uri: String,
@@ -9,11 +17,13 @@ pub struct Artist {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Album {
+    #[serde(default, deserialize_with = "de_string_or_default")]
     pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Track {
+    #[serde(default, deserialize_with = "de_string_or_default")]
     pub name: String,
     #[serde(default)]
     pub uri: String,
@@ -41,7 +51,9 @@ pub struct PlaylistTracks {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Playlist {
+    #[serde(default, deserialize_with = "de_string_or_default")]
     pub id: String,
+    #[serde(default, deserialize_with = "de_string_or_default")]
     pub name: String,
     #[serde(default)]
     pub uri: String,
@@ -51,7 +63,9 @@ pub struct Playlist {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Device {
+    #[serde(default, deserialize_with = "de_string_or_default")]
     pub id: String,
+    #[serde(default, deserialize_with = "de_string_or_default")]
     pub name: String,
     #[serde(default, rename = "type")]
     pub device_type: String,
@@ -82,7 +96,7 @@ pub struct QueueResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SearchItems<T> {
     #[serde(default)]
-    pub items: Vec<T>,
+    pub items: Vec<Option<T>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -127,4 +141,36 @@ pub struct PlaylistTracksResponse {
 pub struct DevicesResponse {
     #[serde(default)]
     pub devices: Vec<Device>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_results_tolerate_null_playlist_items() {
+        let payload = r#"{
+            "tracks": { "items": [] },
+            "playlists": {
+                "items": [
+                    null,
+                    {
+                        "id": "37i9dQZF1DX4dyzvuaRJ0n",
+                        "name": "Naija Mix",
+                        "uri": "spotify:playlist:37i9dQZF1DX4dyzvuaRJ0n",
+                        "tracks": { "total": 42 }
+                    }
+                ]
+            },
+            "artists": { "items": [] }
+        }"#;
+
+        let parsed: SearchResults = serde_json::from_str(payload).unwrap();
+        assert_eq!(parsed.playlists.items.len(), 2);
+        assert!(parsed.playlists.items[0].is_none());
+        assert_eq!(
+            parsed.playlists.items[1].as_ref().unwrap().name,
+            "Naija Mix"
+        );
+    }
 }

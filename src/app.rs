@@ -288,7 +288,7 @@ impl App {
 
     fn build_search_items(&mut self, res: spotify_api::SearchResults) {
         let mut items = Vec::new();
-        for t in res.tracks.items {
+        for t in res.tracks.items.into_iter().flatten() {
             let artist = t.first_artist_name();
             items.push(SearchItem {
                 kind: "TRACK".into(),
@@ -296,14 +296,14 @@ impl App {
                 uri: t.uri,
             });
         }
-        for p in res.playlists.items {
+        for p in res.playlists.items.into_iter().flatten() {
             items.push(SearchItem {
                 kind: "PLAYLIST".into(),
                 name: p.name.to_uppercase(),
                 uri: p.uri,
             });
         }
-        for a in res.artists.items {
+        for a in res.artists.items.into_iter().flatten() {
             items.push(SearchItem {
                 kind: "ARTIST".into(),
                 name: a.name.to_uppercase(),
