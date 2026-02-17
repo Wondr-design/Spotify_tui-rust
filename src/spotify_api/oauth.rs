@@ -10,6 +10,7 @@ use tiny_http::{Header, Response, Server};
 use url::Url;
 
 use super::client::APIClient;
+use super::error::ApiError;
 use crate::config;
 
 pub const AUTH_URL: &str = "https://accounts.spotify.com/authorize";
@@ -161,6 +162,50 @@ impl APIClient {
             .recv_timeout(Duration::from_secs(300))
             .map_err(|e| anyhow::anyhow!("auth timeout: {}", e))??;
         self.exchange_code(&code, verifier)
+    }
+
+    pub fn refresh_access_token(&mut self) -> Result<(), ApiError> {
+        let refresh = match &self.token {
+            Some(t) if !t.refresh_token.is_empty() => t.refresh_token.clone(),
+            _ => return Err(ApiError::NotAuthenticated("no refresh token".into())),
+        };
+
+        let params = [
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh.as_str()),
+            ("client_id", self.client_id.as_str()),
+        ];
+
+        let resp = self
+            .http
+            .post(TOKEN_URL)
+            .form(&params)
+            .send()
+            .map_err(|e| ApiError::Request(e.to_string()))?;
+
+        if !resp.status().is_success() {
+            let text = resp.text().unwrap_or_default();
+            return Err(ApiError::NotAuthenticated(text));
+        }
+
+        let mut token: Token = resp.json().map_err(|e| ApiError::Request(e.to_string()))?;
+        if let Some(existing) = &self.token {
+            if token.refresh_token.is_empty() {
+                token.refresh_token = existing.refresh_token.clone();
+            }
+        }
+
+        token.expires_at = Token::calc_expiry(token.expires_in);
+        self.token = Some(token.clone());
+        config::save_token(&token).map_err(|e| ApiError::Request(e.to_string()))?;
+        Ok(())
+    }
+
+    pub fn load_token_from_disk(&mut self) -> Result<()> {
+        if let Ok(token) = config::load_token() {
+            self.set_token(token);
+        }
+        Ok(())
     }
 }
 

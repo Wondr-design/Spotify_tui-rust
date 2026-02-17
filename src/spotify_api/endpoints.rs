@@ -1,4 +1,5 @@
-use super::client::{APIClient, ApiError};
+use super::client::APIClient;
+use super::error::ApiError;
 use super::types::*;
 use reqwest::Method;
 use serde_json::json;
