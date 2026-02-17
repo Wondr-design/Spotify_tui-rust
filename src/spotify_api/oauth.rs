@@ -14,7 +14,7 @@ use crate::config;
 
 pub const AUTH_URL: &str = "https://accounts.spotify.com/authorize";
 pub const TOKEN_URL: &str = "https://accounts.spotify.com/api/token";
-pub const REDIRECT_URI: &str = "http://localhost:8888/callback";
+pub const REDIRECT_URI: &str = "http://127.0.0.1:8888/callback";
 pub const SCOPES: &str = "user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private user-library-read";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

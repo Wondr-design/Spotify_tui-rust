@@ -499,7 +499,7 @@ fn render_setup(app: &App) -> Vec<Line<'static>> {
         Line::from("1) CREATE A SPOTIFY APP"),
         Line::from("   developer.spotify.com/dashboard"),
         Line::from("2) ADD REDIRECT URI:"),
-        Line::from("   http://localhost:8888/callback"),
+        Line::from("   http://127.0.0.1:8888/callback"),
         Line::from("3) PASTE CLIENT ID BELOW"),
         Line::from(""),
         Line::from(format!("CLIENT ID: {}", app.setup_client_id)),
